@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+@file:Suppress("DEPRECATION")
+
 package com.google.accompanist.imageloading
 
 import android.annotation.SuppressLint
@@ -36,16 +38,18 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.IntSize
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -59,7 +63,8 @@ import kotlin.math.roundToInt
  * @param R The data or input parameter type.
  */
 @Stable
-interface Loader<R> {
+@Deprecated("Accompanist-ImageLoading is now deprecated. Consider using Coil: https://coil-kt.github.io/coil/compose")
+fun interface Loader<R> {
     /**
      * Execute the 'load' with the given parameters.
      *
@@ -67,16 +72,18 @@ interface Loader<R> {
      * @param size The size of the canvas, which allows loaders to load an optimally sized result.
      * @return The resulting [ImageLoadState].
      */
-    suspend fun load(request: R, size: IntSize): ImageLoadState
+    fun load(request: R, size: IntSize): Flow<ImageLoadState>
 }
 
 /**
  * Object which holds default values for [rememberLoadPainter].
  */
+@Deprecated("Accompanist-ImageLoading is now deprecated. Consider using Coil: https://coil-kt.github.io/coil/compose")
 object LoadPainterDefaults {
     /**
      * Default duration in milliseconds for the fade-in animation.
      */
+    @Deprecated("Accompanist-ImageLoading is now deprecated. Consider using Coil: https://coil-kt.github.io/coil/compose")
     const val FadeInTransitionDuration: Int = 1000
 }
 
@@ -95,6 +102,7 @@ object LoadPainterDefaults {
  * ran in preview mode.
  */
 @Composable
+@Deprecated("Accompanist-ImageLoading is now deprecated. Consider using Coil: https://coil-kt.github.io/coil/compose")
 fun <R> rememberLoadPainter(
     loader: Loader<R>,
     request: R?,
@@ -111,6 +119,7 @@ fun <R> rememberLoadPainter(
     }
     painter.request = request
     painter.shouldRefetchOnSizeChange = shouldRefetchOnSizeChange
+    painter.rootViewSize = LocalView.current.let { IntSize(it.width, it.height) }
 
     // This runs our fade in animation
     animateFadeInColorFilter(
@@ -133,6 +142,7 @@ fun <R> rememberLoadPainter(
 /**
  * Interface that allows apps to control whether a request is re-run once the size changes.
  */
+@Deprecated("Accompanist-ImageLoading is now deprecated. Consider using Coil: https://coil-kt.github.io/coil/compose")
 fun interface ShouldRefetchOnSizeChange {
     /**
      * Return `true` if the request should be re-run if the [size] has changed.
@@ -150,6 +160,7 @@ fun interface ShouldRefetchOnSizeChange {
  *
  * Instances can be created and remembered via the [rememberLoadPainter] function.
  */
+@Deprecated("Accompanist-ImageLoading is now deprecated. Consider using Coil: https://coil-kt.github.io/coil/compose")
 class LoadPainter<R> internal constructor(
     private val loader: Loader<R>,
     private val coroutineScope: CoroutineScope,
@@ -168,6 +179,11 @@ class LoadPainter<R> internal constructor(
     var request by mutableStateOf<R?>(null)
 
     /**
+     * The root view size.
+     */
+    internal var rootViewSize by mutableStateOf(IntSize(0, 0))
+
+    /**
      * Lambda which will be invoked when the size changes, allowing
      * optional re-fetching of the image.
      */
@@ -183,10 +199,9 @@ class LoadPainter<R> internal constructor(
     private var colorFilter: ColorFilter? by mutableStateOf(null)
 
     /**
-     * Our size to use when performing the image load request. This is internal due to
-     * [ImageSuchDeprecated].
+     * Our size to use when performing the image load request.
      */
-    internal var requestSize by mutableStateOf<IntSize?>(null)
+    private var requestSize by mutableStateOf<IntSize?>(null)
 
     override val intrinsicSize: Size
         get() = painter.intrinsicSize
@@ -203,10 +218,7 @@ class LoadPainter<R> internal constructor(
 
     override fun DrawScope.onDraw() {
         // Update the request size, based on the provided canvas size
-        requestSize = IntSize(
-            width = if (size.width >= 0.5f) size.width.roundToInt() else -1,
-            height = if (size.height >= 0.5f) size.width.roundToInt() else -1,
-        )
+        updateRequestSize(canvasSize = size)
 
         val transitionColorFilter = transitionColorFilter
         if (colorFilter != null && transitionColorFilter != null) {
@@ -258,7 +270,7 @@ class LoadPainter<R> internal constructor(
         scope.launch {
             combine(
                 snapshotFlow { request },
-                snapshotFlow { requestSize }.filterNotNull(),
+                snapshotFlow { requestSize },
                 transform = { request, size -> request to size }
             ).collectLatest { (request, size) ->
                 execute(request, size)
@@ -269,9 +281,14 @@ class LoadPainter<R> internal constructor(
         // request size to be -1, -1 which will load the original size image.
         // The ideal fix for this is waiting on https://issuetracker.google.com/186012457
         scope.launch {
-            delay(32) // 32ms should be enough time for measure/layout/draw to happen.
             if (requestSize == null) {
-                requestSize = IntSize(-1, -1)
+                delay(32) // 32ms should be enough time for measure/layout/draw to happen.
+
+                if (requestSize == null) {
+                    // If we still don't have a request size, resolve the size without
+                    // the canvas size
+                    updateRequestSize(canvasSize = Size.Zero)
+                }
             }
         }
     }
@@ -280,8 +297,8 @@ class LoadPainter<R> internal constructor(
      * The function which executes the requests, and update [loadState] as appropriate with the
      * result.
      */
-    private suspend fun execute(request: R?, size: IntSize) {
-        if (request == null) {
+    private suspend fun execute(request: R?, size: IntSize?) {
+        if (request == null || size == null) {
             // If we don't have a request, set our state to Empty and return
             loadState = ImageLoadState.Empty
             return
@@ -296,28 +313,45 @@ class LoadPainter<R> internal constructor(
             return
         }
 
-        // Otherwise we're about to start a request, so set us to 'Loading'
-        loadState = ImageLoadState.Loading
+        loader.load(request, size)
+            .catch { throwable ->
+                when (throwable) {
+                    // Re-throw all Errors, IllegalStateExceptions & IllegalArgumentExceptions
+                    is Error -> throw throwable
+                    is IllegalStateException -> throw throwable
+                    is IllegalArgumentException -> throw throwable
+                    else -> {
+                        // Anything else, we wrap in a Error state instance and re-emit
+                        emit(
+                            ImageLoadState.Error(
+                                result = null,
+                                throwable = throwable,
+                                request = request
+                            )
+                        )
+                    }
+                }
+            }
+            .collect { loadState = it }
+    }
 
-        loadState = try {
-            loader.load(request, size)
-        } catch (ce: CancellationException) {
-            // We specifically don't do anything for the request coroutine being
-            // cancelled: https://github.com/google/accompanist/issues/217
-            throw ce
-        } catch (e: Error) {
-            // Re-throw all Errors
-            throw e
-        } catch (e: IllegalStateException) {
-            // Re-throw all IllegalStateExceptions
-            throw e
-        } catch (e: IllegalArgumentException) {
-            // Re-throw all IllegalArgumentExceptions
-            throw e
-        } catch (t: Throwable) {
-            // Anything else, we wrap in a Error state instance
-            ImageLoadState.Error(result = null, throwable = t, request = request)
-        }
+    private fun updateRequestSize(canvasSize: Size) {
+        requestSize = IntSize(
+            width = when {
+                // If we have a canvas width, use it...
+                canvasSize.width >= 0.5f -> canvasSize.width.roundToInt()
+                // Otherwise we fall-back to the root view size as an upper bound
+                rootViewSize.width > 0 -> rootViewSize.width
+                else -> -1
+            },
+            height = when {
+                // If we have a canvas height, use it...
+                canvasSize.height >= 0.5f -> canvasSize.height.roundToInt()
+                // Otherwise we fall-back to the root view size as an upper bound
+                rootViewSize.height > 0 -> rootViewSize.height
+                else -> -1
+            },
+        )
     }
 }
 
@@ -337,7 +371,9 @@ private fun <R> updatePainter(
         // that using an Image and return
         painterResource(previewPlaceholder)
     } else {
-        loadPainter.loadState.drawable?.let { rememberDrawablePainter(it) } ?: EmptyPainter
+        // This may look like a useless remember, but this allows any Painters instances
+        // to receive remember events (if it implements RememberObserver). Do not remove.
+        remember(loadPainter.loadState) { loadPainter.loadState.painter } ?: EmptyPainter
     }
 }
 

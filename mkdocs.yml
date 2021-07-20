@@ -3,6 +3,7 @@ site_name: 'Accompanist'
 site_description: 'A group of libraries to help write Jetpack Compose apps.'
 site_author: 'Google'
 site_url: 'https://google.github.io/accompanist/'
+edit_uri: 'tree/main/docs/'
 remote_branch: gh-pages
 
 docs_dir: docs-gen
@@ -14,7 +15,7 @@ repo_url: 'https://github.com/google/accompanist'
 # Navigation
 nav:
   - 'Overview': index.md
-  - 'Coil':
+  - 'Coil (deprecated)':
     - 'Guide': coil.md
     - 'API': api/coil/
     - 'Migration from CoilImage': coil/migration-coilimage.md
@@ -39,9 +40,16 @@ nav:
   - 'Swipe Refresh':
     - 'Guide': swiperefresh.md
     - 'API': api/swiperefresh/
+  - 'Placeholder':
+    - 'Guide': placeholder.md
+    - 'Foundation API': api/placeholder/
+    - 'Material API': api/placeholder-material/    
   - 'Flow layouts':
     - 'Guide': flowlayout.md
     - 'API': api/flowlayout/
+  - 'Permissions':
+    - 'Guide': permissions.md
+    - 'API': api/permissions/
   - 'Snapshots': using-snapshot-version.md
   - 'Contributing': contributing.md
   - 'Maintainers':
@@ -72,3 +80,4 @@ markdown_extensions:
   - pymdownx.betterem
   - pymdownx.superfences
   - pymdownx.tabbed
+  - pymdownx.details

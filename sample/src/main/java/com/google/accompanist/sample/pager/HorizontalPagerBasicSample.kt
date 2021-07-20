@@ -78,12 +78,14 @@ private fun Sample() {
     ) {
         Column(Modifier.fillMaxSize()) {
             // Display 10 items
-            val pagerState = rememberPagerState(pageCount = 10)
+            val pagerState = rememberPagerState(
+                pageCount = 10,
+                // We increase the offscreen limit, to allow pre-loading of images
+                initialOffscreenLimit = 2,
+            )
 
             HorizontalPager(
                 state = pagerState,
-                // We increase the offscreen limit, to allow pre-loading of images
-                offscreenLimit = 2,
                 // Add some horizontal spacing between items
                 itemSpacing = 4.dp,
                 modifier = Modifier
@@ -111,12 +113,13 @@ private fun Sample() {
 internal fun ActionsRow(
     pagerState: PagerState,
     modifier: Modifier = Modifier,
+    infiniteLoop: Boolean = false
 ) {
     Row(modifier) {
         val scope = rememberCoroutineScope()
 
         IconButton(
-            enabled = pagerState.currentPage > 0,
+            enabled = infiniteLoop.not() && pagerState.currentPage > 0,
             onClick = {
                 scope.launch {
                     pagerState.animateScrollToPage(0)
@@ -127,7 +130,7 @@ internal fun ActionsRow(
         }
 
         IconButton(
-            enabled = pagerState.currentPage > 0,
+            enabled = infiniteLoop || pagerState.currentPage > 0,
             onClick = {
                 scope.launch {
                     pagerState.animateScrollToPage(pagerState.currentPage - 1)
@@ -138,7 +141,7 @@ internal fun ActionsRow(
         }
 
         IconButton(
-            enabled = pagerState.currentPage < pagerState.pageCount - 1,
+            enabled = infiniteLoop || pagerState.currentPage < pagerState.pageCount - 1,
             onClick = {
                 scope.launch {
                     pagerState.animateScrollToPage(pagerState.currentPage + 1)
@@ -149,7 +152,7 @@ internal fun ActionsRow(
         }
 
         IconButton(
-            enabled = pagerState.currentPage < pagerState.pageCount - 1,
+            enabled = infiniteLoop.not() && pagerState.currentPage < pagerState.pageCount - 1,
             onClick = {
                 scope.launch {
                     pagerState.animateScrollToPage(pagerState.pageCount - 1)

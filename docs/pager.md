@@ -35,6 +35,8 @@ HorizontalPager(state = pagerState) { page ->
 }
 ```
 
+If you want to jump to a specific page, you either call call `pagerState.scrollToPage(index)` or  `pagerState.animateScrollToPage(index)` method in a `CoroutineScope`.
+
 ## VerticalPager
 
 [`VerticalPager`][api-vertpager] is very similar to [`HorizontalPager`][api-horizpager] but items are laid out vertically, and react to vertical swipes:
@@ -66,13 +68,15 @@ Pages in both [`HorizontalPager`][api-horizpager] and [`VerticalPager`][api-vert
 
 ### Offscreen Limit
 
-Both [`HorizontalPager`][api-horizpager] & [`VerticalPager`][api-vertpager] allow the setting of the `offscreenLimit`, which defines the number of pages that should be retained on either side of the current page. Pages beyond this limit will be removed, and then recreated when needed. This value defaults to `1`, but can be increased to enable pre-loading of more content:
+The [PagerState][pagerstate-api] API allows the setting of the `initialOffscreenLimit`, which defines the number of pages that should be retained on either side of the current page. Pages beyond this limit will be removed, and then recreated as needed. This value defaults to `1`, but can be increased to enable pre-loading of more content:
 
 ```kotlin
-HorizontalPager(
-    state = pagerState,
-    offscreenLimit = 2,
-) { page ->
+val pagerState = rememberPagerState(
+    pageCount = 10,
+    initialOffscreenLimit = 2,
+)
+
+HorizontalPager(state = pagerState) { page ->
     // ...
 }
 ```
@@ -249,4 +253,5 @@ limitations under the License.
   [api-horizpager]: ../api/pager/pager/com.google.accompanist.pager/-horizontal-pager.html
   [currentpage-api]: ../api/pager/pager/com.google.accompanist.pager/-pager-state/current-page.html
   [currentpageoffset-api]: ../api/pager/pager/com.google.accompanist.pager/-pager-state/current-page-offset.html
-  [calcoffsetpage]: ../api/pager/pager/com.google.accompanist.pager/calculate-current-offset-for-page.html)
+  [calcoffsetpage]: ../api/pager/pager/com.google.accompanist.pager/calculate-current-offset-for-page.html
+  [pagerstate-api]: ../api/pager/pager/com.google.accompanist.pager/remember-pager-state.html

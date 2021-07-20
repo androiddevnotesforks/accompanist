@@ -18,17 +18,20 @@ buildscript {
     repositories {
         google()
         mavenCentral()
-        jcenter()
     }
 
     dependencies {
+        classpath libs.android.tools.build.gradle
         classpath libs.android.gradlePlugin
         classpath libs.kotlin.gradlePlugin
 
         classpath libs.gradleMavenPublishPlugin
 
         classpath libs.dokka
-        classpath libs.kotlin.binaryCompatibility
+
+        classpath libs.metalavaGradle
+
+        classpath libs.affectedmoduledetector
     }
 }
 
@@ -37,23 +40,42 @@ plugins {
 }
 
 apply plugin: 'org.jetbrains.dokka'
-
-apply plugin: 'binary-compatibility-validator'
-apiValidation {
-    // Ignore the sample from API tracking/checking
-    ignoredProjects += ["sample", "imageloading-testutils"]
-}
+apply plugin: 'com.dropbox.affectedmoduledetector'
 
 tasks.withType(org.jetbrains.dokka.gradle.DokkaMultiModuleTask).configureEach {
     outputDirectory = rootProject.file('docs/api')
     failOnWarning = true
 }
 
+affectedModuleDetector {
+    baseDir = "${project.rootDir}"
+    pathsAffectingAllModules = [
+            "gradle/libs.versions.toml",
+    ]
+    excludedModules = [
+            "sample"
+    ]
+
+    logFilename = "output.log"
+    logFolder = "${rootProject.buildDir}/affectedModuleDetector"
+
+    String baseRef = findProperty("affected_base_ref")
+    // If we have a base ref to diff against, extract the branch name and use it
+    if (baseRef != null && !baseRef.isEmpty()) {
+        // Remove the prefix from the head.
+        // TODO: need to support other types of git refs
+        specifiedBranch = baseRef.replace('refs/heads/', '')
+        compareFrom = "SpecifiedBranchCommit"
+    } else {
+        // Otherwise we use the previous commit. This is mostly used for commits to main.
+        compareFrom = "PreviousCommit"
+    }
+}
+
 allprojects {
     repositories {
         google()
         mavenCentral()
-        jcenter()
 
         def composeSnapshot = libs.versions.composesnapshot.get()
         if (composeSnapshot.length() > 1) {
@@ -79,19 +101,27 @@ subprojects {
         }
     }
 
+    configurations.configureEach {
+        resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+            // Make sure that we're using the Android version of Guava
+            if (details.requested.group == 'com.google.guava'
+                    && details.requested.module.name == 'guava'
+                    && details.requested.version.contains('jre')) {
+                details.useVersion details.requested.version.replace('jre', 'android')
+            }
+        }
+    }
+
     tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach { compile ->
         kotlinOptions {
             // Treat all Kotlin warnings as errors
             allWarningsAsErrors = true
-
             // Set JVM target to 1.8
             jvmTarget = "1.8"
-
             // Allow use of @OptIn
             freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
-
-            // FIXME figure out why this is needed
-            freeCompilerArgs += "-Xallow-unstable-dependencies"
+            // Enable default methods in interfaces
+            freeCompilerArgs += "-Xjvm-default=all"
         }
     }
 
@@ -107,6 +137,16 @@ subprojects {
             } else {
                 project.ext.set(prop.key, prop.value)
             }
+        }
+    }
+
+    // If we have a POM Artifact ID, we should generate API files
+    if (project.hasProperty('POM_ARTIFACT_ID')) {
+        apply plugin: 'me.tylerbwong.gradle.metalava'
+
+        metalava {
+            filename = "api/current.api"
+            reportLintsAsErrors = true
         }
     }
 
@@ -163,7 +203,9 @@ subprojects {
                 }
             }
         }
+    }
 
+    afterEvaluate {
         def composeSnapshot = libs.versions.composesnapshot.get()
         if (composeSnapshot.length() > 1) {
             // We're depending on a Jetpack Compose snapshot, update the library version name

@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+@file:Suppress("DEPRECATION")
+
 package com.google.accompanist.coil
 
 import android.graphics.drawable.ShapeDrawable
@@ -121,6 +123,8 @@ class CoilTest {
             )
         }
 
+        waitForRequestComplete()
+
         composeTestRule.onNodeWithTag(CoilTestTags.Image)
             .assertIsDisplayed()
             .assertWidthIsEqualTo(128.dp)
@@ -139,6 +143,8 @@ class CoilTest {
                     .testTag(CoilTestTags.Image),
             )
         }
+
+        waitForRequestComplete()
 
         composeTestRule.onNodeWithTag(CoilTestTags.Image)
             .assertWidthIsEqualTo(128.dp)
@@ -160,6 +166,8 @@ class CoilTest {
                     .testTag(CoilTestTags.Image),
             )
         }
+
+        waitForRequestComplete()
 
         composeTestRule.onNodeWithTag(CoilTestTags.Image)
             .assertWidthIsEqualTo(128.dp)
@@ -245,6 +253,8 @@ class CoilTest {
             )
         }
 
+        waitForRequestComplete()
+
         // Assert that the content is completely Red
         composeTestRule.onNodeWithTag(CoilTestTags.Image)
             .assertWidthIsEqualTo(128.dp)
@@ -319,6 +329,8 @@ class CoilTest {
             )
         }
 
+        waitForRequestComplete()
+
         composeTestRule.onNodeWithTag(CoilTestTags.Image)
             .assertWidthIsAtLeast(1.dp)
             .assertHeightIsAtLeast(1.dp)
@@ -341,7 +353,7 @@ class CoilTest {
             }
         }
 
-        composeTestRule.waitUntil { coilRequestTracker.finishedRequests > 0 }
+        waitForRequestComplete()
 
         composeTestRule.onNodeWithTag(CoilTestTags.Image)
             .assertWidthIsAtLeast(1.dp)
@@ -367,6 +379,8 @@ class CoilTest {
                     .size(128.dp),
             )
         }
+
+        waitForRequestComplete()
 
         // Assert that the error drawable was drawn
         composeTestRule.onNodeWithTag(CoilTestTags.Image)
@@ -416,6 +430,8 @@ class CoilTest {
                     .testTag(CoilTestTags.Image),
             )
         }
+
+        waitForRequestComplete()
 
         // Assert that the layout is in the tree and has the correct size
         composeTestRule.onNodeWithTag(CoilTestTags.Image)
@@ -472,5 +488,13 @@ class CoilTest {
                 modifier = Modifier.size(128.dp, 128.dp),
             )
         }
+    }
+
+    private fun waitForRequestComplete() {
+        composeTestRule.waitForIdle()
+        composeTestRule.waitUntil(5_000) {
+            coilRequestTracker.finishedRequests > 0
+        }
+        composeTestRule.waitForIdle()
     }
 }

@@ -46,9 +46,6 @@ android {
         textOutput 'stdout'
         // We run a full lint analysis as build part in CI, so skip vital checks for assemble tasks
         checkReleaseBuilds false
-
-        // Not much we can do about unsafe lint rules from libraries
-        disable "UnsafeExperimentalUsageError", "UnsafeExperimentalUsageWarning"
     }
 
     packagingOptions {
@@ -76,5 +73,5 @@ dependencies {
 
     implementation libs.kotlin.coroutines.test
 
-    implementation libs.compose.ui.test
+    implementation libs.compose.ui.test.junit4
 }

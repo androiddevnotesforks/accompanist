@@ -2,11 +2,22 @@
 
 [![Maven Central](https://img.shields.io/maven-central/v/com.google.accompanist/accompanist-glide)](https://search.maven.org/search?q=g:com.google.accompanist)
 
+!!! warning
+    The Accompanist-Glide library is now deprecated (as of v0.14), and will be removed at a future point in time (before v1.0).
+    Apps should consider migrating to [Coil](https://coil-kt.github.io/coil/compose/) for similar functionality.
+
+---
+
 This library brings easy-to-use [Painter][painter] which can fetch and display images from external sources, such as network, using the [Glide][glide] image loading library.
 
 <img src="https://github.com/bumptech/glide/blob/master/static/glide_logo.png?raw=true" width="480" alt="Glide logo">
 
-!!! info
+!!! tip
+    Unless you have a specific requirement to use Glide, consider using [Coil](coil.md) instead.
+    Coil is built upon Kotlin Coroutines which means that it integrates better with
+    Jetpack Compose, which also heavily uses [Coroutines](https://developer.android.com/jetpack/compose/kotlin#coroutines).
+
+??? info "Migrating from GlideImage"
     If you're migrating from Accompanist 0.7.x or before, please read the [migration](./migration-glideimage) documentation after reading this document.
 
 ## `rememberGlidePainter()`
@@ -18,9 +29,11 @@ import androidx.compose.foundation.Image
 import com.google.accompanist.glide.rememberGlidePainter
 
 Image(
-    painter = rememberGlidePainter("https://picsum.photos/300/300"),
-    contentDescription = stringResource(R.string.image_content_desc),
-    previewPlaceholder = R.drawable.placeholder,
+    painter = rememberGlidePainter(
+        request = "https://picsum.photos/300/300",
+        previewPlaceholder = R.drawable.placeholder
+    ),
+    contentDescription = stringResource(R.string.image_content_desc)
 )
 ```
 
@@ -80,7 +93,7 @@ Box {
     )
 
     when (painter.loadState) {
-        ImageLoadState.Loading -> {
+        is ImageLoadState.Loading -> {
             // Display a circular progress indicator whilst loading
             CircularProgressIndicator(Modifier.align(Alignment.Center))
         }
